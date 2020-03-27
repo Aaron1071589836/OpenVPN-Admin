@@ -31,14 +31,30 @@
       $rootPath = realpath("./client-conf/$conf_dir");
 
       // Initialize archive object ;;;; why doing this every time the user logs in, when the cert is static?
+	  $username = $_POST['configuration_username'];
+	  $userpass = $_POST['configuration_pass'];
+	  
       $archive_base_name = "openvpn-$conf_dir";
       $archive_name = "$archive_base_name.zip";
-      $archive_path = "./client-conf/$archive_name";
+	  $target_dir = "./client-conf/users/$username/$conf_dir";
+      $archive_path = "./client-conf/users/$username/$archive_name";//"./client-conf/$archive_name";	  
+	  
+       	  
+	  if (!file_exists($target_dir)){
+        mkdir ($target_dir,0777,true);
+	  }
+	  $real_target_dir = realpath($target_dir);
+	  copydir($rootPath,$target_dir);	  
+	  $pswfile = fopen("${target_dir}/psw-file", "w");	 
+	  $txt = "${username}\n${userpass}";
+	  fwrite($pswfile, $txt);
+	  fclose($pswfile);
+	  	 
       $zip = new ZipArchive();
       $zip->open($archive_path, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-
+	  	  
       $files = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($rootPath),
+        new RecursiveDirectoryIterator($real_target_dir),
         RecursiveIteratorIterator::LEAVES_ONLY
       );
 
@@ -47,12 +63,14 @@
         if (!$file->isDir()) {
           // Get real and relative path for current file
           $filePath = $file->getRealPath();
-          $relativePath = substr($filePath, strlen($rootPath) + 1);
+          $relativePath = substr($filePath, strlen($real_target_dir) + 1);
 
           // Add current file to archive
           $zip->addFile($filePath, "$archive_base_name/$relativePath");
         }
-      }
+      } 
+	  
+    
 
       // Zip archive will be created only after closing object
       $zip->close();
